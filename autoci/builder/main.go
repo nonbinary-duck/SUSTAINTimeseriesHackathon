@@ -42,7 +42,6 @@ func main() {
         currentCtx, cancelCurrent = context.WithCancel(context.Background())
         ctx := currentCtx
         mu.Unlock()
-
         go runBuild(ctx, commit)
         w.WriteHeader(http.StatusOK)
     })
@@ -68,13 +67,12 @@ func runBuild(ctx context.Context, commit string) {
     buildTime := getBuildTime()
     logStr := "Starting Docker build via Go API...\n"
     sendStatus(commit, "Building", logStr, buildTime)
-
     cli, err := client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
     if err != nil {
         sendStatus(commit, "Failed", logStr+"Docker init error: "+err.Error(), buildTime)
         return
     }
-
+    
     // 1. Create Tarball in memory containing just Dockerfile.autoci
     buf := new(bytes.Buffer)
     tw := tar.NewWriter(buf)
@@ -84,12 +82,11 @@ func runBuild(ctx context.Context, commit string) {
         tw.Write(df)
     }
     tw.Close()
-
+    
     // 2. Build Image
     buildArgs := make(map[string]*string)
     buildArgs["COMMIT_ID"] = &commit
     buildArgs["BUILD_TIME"] = &buildTime
-
     res, err := cli.ImageBuild(ctx, buf, types.ImageBuildOptions{
         Tags:       []string{os.Getenv("TARGET_IMAGE")},
         BuildArgs:  buildArgs,
@@ -104,18 +101,20 @@ func runBuild(ctx context.Context, commit string) {
     buildLogs, _ := io.ReadAll(res.Body)
     res.Body.Close()
     logStr += string(buildLogs) + "\nBuild finished. Replacing container..."
-
+    
     // Check if context was cancelled during build
     if ctx.Err() != nil {
         sendStatus(commit, "Cancelled", logStr+"\nCancelled by newer push.", buildTime)
         return
     }
-
+    
     // 3. Recreate Container
     target := os.Getenv("TARGET_CONTAINER")
     cli.ContainerStop(ctx, target, container.StopOptions{})
-    cli.ContainerRemove(ctx, target, types.ContainerRemoveOptions{Force: true})
-
+    
+    // CHANGED: types.ContainerRemoveOptions -> container.RemoveOptions
+    cli.ContainerRemove(ctx, target, container.RemoveOptions{Force: true})
+    
     cont, err := cli.ContainerCreate(ctx, &container.Config{
         Image: os.Getenv("TARGET_IMAGE"),
         ExposedPorts: nat.PortSet{"5001/tcp": struct{}{}},
@@ -124,12 +123,13 @@ func runBuild(ctx context.Context, commit string) {
         Resources: container.Resources{Memory: 4 * 1024 * 1024 * 1024, NanoCPUs: 4000000000},
         RestartPolicy: container.RestartPolicy{Name: "always"},
     }, nil, nil, target)
-
     if err != nil {
         sendStatus(commit, "Failed", logStr+"\nRun error: "+err.Error(), buildTime)
         return
     }
-
-    cli.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{})
+    
+    // CHANGED: types.ContainerStartOptions -> container.StartOptions
+    cli.ContainerStart(ctx, cont.ID, container.StartOptions{})
+    
     sendStatus(commit, "Success", logStr+"\nContainer running successfully.", buildTime)
 }
