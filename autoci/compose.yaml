@@ -55,6 +55,8 @@ services:
     container_name: autoci-status
     ports:
       - "5003:8080"
+    volumes:
+      - ./data:/data    # <--- ADDED VOLUME FOR PERSISTENCE
     restart: always
     networks:
       - ci-internal

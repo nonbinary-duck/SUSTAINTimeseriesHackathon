@@ -5,12 +5,12 @@ import (
     "bytes"
     "context"
     "encoding/json"
-    "io"
     "log"
     "net/http"
     "net/netip"
     "os"
     "sync"
+    "time"
 
     "github.com/moby/moby/api/types/container"
     "github.com/moby/moby/api/types/network"
@@ -33,7 +33,6 @@ type Update struct {
 func main() {
     http.HandleFunc("/trigger", func(w http.ResponseWriter, r *http.Request) {
         commit := r.URL.Query().Get("commit")
-
         mu.Lock()
         if cancelCurrent != nil {
             cancelCurrent()
@@ -46,7 +45,6 @@ func main() {
         go runBuild(ctx, commit)
         w.WriteHeader(http.StatusOK)
     })
-
     log.Println("Builder listening on :8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -57,7 +55,6 @@ func getBuildTime() string {
         return "Unknown Time"
     }
     defer resp.Body.Close()
-
     var res map[string]string
     _ = json.NewDecoder(resp.Body).Decode(&res)
     return res["time"]
@@ -86,7 +83,6 @@ func runBuild(ctx context.Context, commit string) {
 
     buf := new(bytes.Buffer)
     tw := tar.NewWriter(buf)
-
     df, err := os.ReadFile("/app/Dockerfile.autoci")
     if err == nil {
         _ = tw.WriteHeader(&tar.Header{
@@ -111,23 +107,68 @@ func runBuild(ctx context.Context, commit string) {
         return
     }
 
-    buildLogs, _ := io.ReadAll(res.Body)
-    _ = res.Body.Close()
-    logStr += string(buildLogs) + "\nBuild finished. Replacing container..."
+    // ----------------------------------------------------
+    // STREAM LOGS
+    // ----------------------------------------------------
+    var logMu sync.Mutex
+    done := make(chan bool)
+
+    // Background ticker to push log stream to the status UI
+    go func() {
+        ticker := time.NewTicker(1 * time.Second)
+        defer ticker.Stop()
+        for {
+            select {
+            case <-ticker.C:
+                logMu.Lock()
+                currLog := logStr
+                logMu.Unlock()
+                sendStatus(commit, "Building", currLog, buildTime)
+            case <-done:
+                return
+            }
+        }
+    }()
+
+    decoder := json.NewDecoder(res.Body)
+    for {
+        var msg struct {
+            Stream string `json:"stream"`
+            Error  string `json:"error"`
+        }
+        if err := decoder.Decode(&msg); err != nil {
+            break // EOF or decode error means build finished
+        }
+        
+        logMu.Lock()
+        if msg.Error != "" {
+            logStr += msg.Error + "\n"
+        } else if msg.Stream != "" {
+            logStr += msg.Stream
+        }
+        logMu.Unlock()
+    }
+    res.Body.Close()
+    close(done) // stop the ticker
+    // ----------------------------------------------------
+
+    logMu.Lock()
+    logStr += "\nBuild finished. Replacing container..."
+    finalLog := logStr
+    logMu.Unlock()
 
     if ctx.Err() != nil {
-        sendStatus(commit, "Cancelled", logStr+"\nCancelled by newer push.", buildTime)
+        sendStatus(commit, "Cancelled", finalLog+"\nCancelled by newer push.", buildTime)
         return
     }
 
     target := os.Getenv("TARGET_CONTAINER")
-
     _, _ = cli.ContainerStop(ctx, target, client.ContainerStopOptions{})
     _, _ = cli.ContainerRemove(ctx, target, client.ContainerRemoveOptions{Force: true})
 
     port5001, err := network.ParsePort("5001/tcp")
     if err != nil {
-        sendStatus(commit, "Failed", logStr+"\nPort parse error: "+err.Error(), buildTime)
+        sendStatus(commit, "Failed", finalLog+"\nPort parse error: "+err.Error(), buildTime)
         return
     }
 
@@ -152,15 +193,15 @@ func runBuild(ctx context.Context, commit string) {
         },
     })
     if err != nil {
-        sendStatus(commit, "Failed", logStr+"\nRun error: "+err.Error(), buildTime)
+        sendStatus(commit, "Failed", finalLog+"\nRun error: "+err.Error(), buildTime)
         return
     }
 
     _, err = cli.ContainerStart(ctx, cont.ID, client.ContainerStartOptions{})
     if err != nil {
-        sendStatus(commit, "Failed", logStr+"\nStart error: "+err.Error(), buildTime)
+        sendStatus(commit, "Failed", finalLog+"\nStart error: "+err.Error(), buildTime)
         return
     }
 
-    sendStatus(commit, "Success", logStr+"\nContainer running successfully.", buildTime)
+    sendStatus(commit, "Success", finalLog+"\nContainer running successfully.", buildTime)
 }
