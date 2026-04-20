@@ -7,7 +7,6 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-
     body {
       font-family: 'Segoe UI', sans-serif;
       background: #f0f4f8;
@@ -15,40 +14,33 @@
       min-height: 100vh;
       padding: 30px 20px;
     }
-
     .container { max-width: 900px; margin: 0 auto; }
-
     h1 {
       font-size: 28px;
       font-weight: 700;
       margin-bottom: 6px;
     }
-
     .subtitle {
       color: #666;
       font-size: 15px;
       margin-bottom: 30px;
     }
-
     .controls {
       display: flex;
       gap: 20px;
       flex-wrap: wrap;
       margin-bottom: 24px;
     }
-
     .select-group {
       display: flex;
       flex-direction: column;
       gap: 6px;
     }
-
     label {
       font-weight: 600;
       font-size: 13px;
       color: #333;
     }
-
     select {
       padding: 8px 12px;
       border-radius: 6px;
@@ -58,9 +50,7 @@
       background: #fff;
       cursor: pointer;
     }
-
     select:disabled { background: #f5f5f5; cursor: not-allowed; }
-
     .card {
       background: #fff;
       border-radius: 10px;
@@ -68,19 +58,16 @@
       margin-bottom: 24px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.07);
     }
-
     .card h2 {
       font-size: 17px;
       font-weight: 600;
       margin-bottom: 4px;
     }
-
     .card-sub {
       font-size: 13px;
       color: #999;
       margin-bottom: 20px;
     }
-
     .placeholder {
       text-align: center;
       padding: 60px 20px;
@@ -90,7 +77,6 @@
       border-radius: 10px;
       border: 2px dashed #e0e0e0;
     }
-
     .error {
       color: #e53935;
       background: #ffebee;
@@ -99,20 +85,17 @@
       margin-bottom: 16px;
       display: none;
     }
-
     .loading {
       color: #1976D2;
       margin-bottom: 16px;
       display: none;
     }
-
     .stats-row {
       display: flex;
       gap: 16px;
       flex-wrap: wrap;
       margin-bottom: 24px;
     }
-
     .stat-box {
       background: #fff;
       border-radius: 10px;
@@ -122,25 +105,21 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.07);
       text-align: center;
     }
-
     .stat-box .stat-value {
       font-size: 22px;
       font-weight: 700;
       color: #2196F3;
     }
-
     .stat-box .stat-label {
       font-size: 12px;
       color: #999;
       margin-top: 4px;
     }
-
     canvas { max-height: 350px; }
   </style>
 </head>
 <body>
 <div class="container">
-
   <h1>🌾 Crop Yield Predictor</h1>
   <p class="subtitle">ML-powered yield predictions using temperature, rainfall &amp; historical data</p>
 
@@ -186,6 +165,13 @@
     <canvas id="yieldChart"></canvas>
   </div>
 
+  <!-- CLIMATE CHART -->
+  <div class="card" id="climateCard" style="display:none;">
+    <h2 id="climateTitle">Historical Climate Data</h2>
+    <p class="card-sub">Temperature (left axis) vs Rainfall (right axis)</p>
+    <canvas id="climateChart"></canvas>
+  </div>
+
   <!-- FEATURE IMPORTANCE CHART -->
   <div class="card">
     <h2>What Drives Yield?</h2>
@@ -197,13 +183,13 @@
   <div class="placeholder" id="placeholder">
     Select a country and crop above to see yield predictions
   </div>
-
 </div>
 
 <script>
   const API = "http://localhost:5001";
   let yieldChartInstance = null;
   let featureChartInstance = null;
+  let climateChartInstance = null;
 
   // -----------------------------------------------
   // UTILITY
@@ -247,11 +233,13 @@
   document.getElementById("countrySelect").addEventListener("change", async function () {
     const area = this.value;
     const cropSelect = document.getElementById("cropSelect");
-
+    
     // Reset crop dropdown
     cropSelect.innerHTML = '<option value="">-- Select Crop --</option>';
     cropSelect.disabled = !area;
+    
     document.getElementById("yieldCard").style.display = "none";
+    document.getElementById("climateCard").style.display = "none";
     document.getElementById("statsRow").style.display = "none";
     document.getElementById("placeholder").style.display = "block";
     showError("");
@@ -279,6 +267,7 @@
     showLoading(true);
     showError("");
     document.getElementById("yieldCard").style.display = "none";
+    document.getElementById("climateCard").style.display = "none";
     document.getElementById("placeholder").style.display = "none";
 
     try {
@@ -286,17 +275,17 @@
         `${API}/api/chart-data?area=${encodeURIComponent(area)}&crop=${encodeURIComponent(crop)}`
       );
       const data = await res.json();
-
+      
       if (data.error) {
         showError(data.error);
       } else {
         renderYieldChart(data, area, crop);
+        renderClimateChart(data, area);
         renderStats(data);
       }
     } catch (e) {
       showError("Could not connect to the backend. Is Flask running?");
     }
-
     showLoading(false);
   });
 
@@ -314,8 +303,8 @@
     const predicted = data.map(d => d.predicted);
 
     if (yieldChartInstance) yieldChartInstance.destroy();
-
     const ctx = document.getElementById("yieldChart").getContext("2d");
+
     yieldChartInstance = new Chart(ctx, {
       type: "line",
       data: {
@@ -364,6 +353,87 @@
   }
 
   // -----------------------------------------------
+  // RENDER CLIMATE CHART (DUAL AXIS)
+  // -----------------------------------------------
+  function renderClimateChart(data, area) {
+    const card = document.getElementById("climateCard");
+    card.style.display = "block";
+    document.getElementById("climateTitle").textContent = `Historical Climate Data for ${area}`;
+
+    const labels = data.map(d => d.year);
+    const temps  = data.map(d => d.avg_temp);
+    const rains  = data.map(d => d.rainfall);
+
+    if (climateChartInstance) climateChartInstance.destroy();
+    const ctx = document.getElementById("climateChart").getContext("2d");
+
+    climateChartInstance = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [
+          {
+            label: "Avg Temperature (°C)",
+            data: temps,
+            borderColor: "#E91E63",
+            backgroundColor: "rgba(233, 30, 99, 0.08)",
+            yAxisID: "y-temp",
+            borderWidth: 2,
+            pointRadius: 4,
+            tension: 0.3
+          },
+          {
+            label: "Rainfall (mm/year)",
+            data: rains,
+            borderColor: "#00BCD4",
+            backgroundColor: "rgba(0, 188, 212, 0.08)",
+            yAxisID: "y-rain",
+            borderWidth: 2,
+            borderDash: [6, 3],
+            pointRadius: 4,
+            tension: 0.3
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        interaction: {
+          mode: 'index',
+          intersect: false,
+        },
+        plugins: {
+          legend: { position: "top" },
+        },
+        scales: {
+          "y-temp": {
+            type: "linear",
+            position: "left",
+            title: {
+              display: true,
+              text: "Temperature (°C)",
+              color: "#E91E63",
+              font: { weight: 'bold' }
+            }
+          },
+          "y-rain": {
+            type: "linear",
+            position: "right",
+            title: {
+              display: true,
+              text: "Rainfall (mm)",
+              color: "#00BCD4",
+              font: { weight: 'bold' }
+            },
+            grid: {
+              drawOnChartArea: false // Prevents grid lines from overlapping
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // -----------------------------------------------
   // RENDER STAT BOXES
   // -----------------------------------------------
   function renderStats(data) {
@@ -382,13 +452,12 @@
   async function loadFeatureImportance() {
     const res  = await fetch(`${API}/api/feature-importance`);
     const data = await res.json();
-
     const labels     = data.map(d => d.feature);
     const importance = data.map(d => (d.importance * 100).toFixed(1));
 
     if (featureChartInstance) featureChartInstance.destroy();
-
     const ctx = document.getElementById("featureChart").getContext("2d");
+
     featureChartInstance = new Chart(ctx, {
       type: "bar",
       data: {
