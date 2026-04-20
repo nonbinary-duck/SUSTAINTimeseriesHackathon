@@ -3,4 +3,4 @@ services:
     build: webapp/.            # build from the Dockerfile in this folder
     pull_policy: build
     ports:
-      - "5000:5000"     # map localhost:5000 to the container's port 5000
+      - "5001:5001"     # map localhost:5000 to the container's port 5000
