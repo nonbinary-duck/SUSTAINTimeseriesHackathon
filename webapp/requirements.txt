@@ -2,3 +2,5 @@ flask
 xgboost
 scikit-learn
 numpy
+pandas
+flask_cors
