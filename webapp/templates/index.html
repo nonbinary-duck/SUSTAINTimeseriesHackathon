@@ -122,7 +122,6 @@
 <div class="container">
   <h1>🌾 Crop Yield Predictor</h1>
   <p class="subtitle">ML-powered yield predictions using temperature, rainfall &amp; historical data</p>
-
   <!-- CONTROLS -->
   <div class="controls">
     <div class="select-group">
@@ -138,10 +137,8 @@
       </select>
     </div>
   </div>
-
   <div class="error" id="errorBox"></div>
   <div class="loading" id="loadingBox">Loading predictions...</div>
-
   <!-- STAT BOXES -->
   <div class="stats-row" id="statsRow" style="display:none;">
     <div class="stat-box">
@@ -157,36 +154,24 @@
       <div class="stat-label">Years of Data</div>
     </div>
   </div>
-
   <!-- YIELD CHART -->
   <div class="card" id="yieldCard" style="display:none;">
     <h2 id="yieldTitle">Actual vs Predicted Yield</h2>
     <p class="card-sub">Yield measured in hg/ha (hectograms per hectare)</p>
     <canvas id="yieldChart"></canvas>
   </div>
-
   <!-- CLIMATE CHART -->
   <div class="card" id="climateCard" style="display:none;">
     <h2 id="climateTitle">Historical Climate Data</h2>
     <p class="card-sub">Temperature (left axis) vs Rainfall (right axis)</p>
     <canvas id="climateChart"></canvas>
   </div>
-
   <!-- FEATURE IMPORTANCE CHART -->
   <div class="card">
     <h2>What Drives Yield?</h2>
     <p class="card-sub">XGBoost feature importance scores</p>
     <canvas id="featureChart"></canvas>
   </div>
-
-  <!-- PLACEHOLDER -->
-  <div class="placeholder" id="placeholder">
-    Select a country and crop above to see yield predictions
-  </div>
-</div>
-
-<!-- ... Keep your existing HTML and JS above ... -->
-
   <!-- PLACEHOLDER -->
   <div class="placeholder" id="placeholder">
     Select a country and crop above to see yield predictions
@@ -195,19 +180,19 @@
 
 <!-- CI FOOTER (Only injected if ENV variable is set) -->
 {% if show_ci %}
-<div style="background: #ffffff; border-top: 2px solid #e2e8f0; padding: 15px; margin-top: 40px; text-align: center; color: #334155; font-size: 14px; position: relative; z-index: 1000; box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);">
+<div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 15px; margin-top: 40px; text-align: center; color: #64748b; font-size: 13px; position: relative; z-index: 1000;">
     <strong>System Built at:</strong> {{ build_time }} | 
-    <strong>Commit:</strong> <a href="https://github.com/nonbinary-duck/SUSTAINTimeseriesHackathon/commit/{{ commit_id }}" style="color: #2563eb; text-decoration: none; font-family: monospace;">{{ commit_id }}</a> | 
-    <a href="/gitbuildstatus/?commit={{ commit_id }}" style="color: #2563eb; text-decoration: none;" target="_blank">View Build Logs</a> 
-    <span id="ci-live-status" style="margin-left: 10px; font-weight: bold; background: #f1f5f9; padding: 4px 8px; border-radius: 4px;">⏳ Checking status...</span>
+    <strong>Commit:</strong> <a href="https://github.com/nonbinary-duck/SUSTAINTimeseriesHackathon/commit/{{ commit_id }}" style="color: #64748b; text-decoration: underline; font-family: monospace;">{{ commit_id[:7] }}</a> | 
+    <a href="/gitbuildstatus/?commit={{ commit_id }}" style="color: #64748b; text-decoration: underline;" target="_blank">View Build Logs</a> 
+    <span id="ci-live-status" style="margin-left: 10px; font-weight: bold; background: #e2e8f0; padding: 4px 8px; border-radius: 4px;">⏳ Checking status...</span>
 </div>
 <script>
     function checkStatus() {
         fetch('/gitbuildstatus/api/latest').then(r=>r.json()).then(d=>{
             const el = document.getElementById('ci-live-status');
             if (d.commit === '{{ commit_id }}' && d.status === 'Success') {
-                el.innerHTML = '✅ Up to date';
-                el.style.color = '#16a34a';
+                el.innerHTML = '✔ Up to date';
+                el.style.color = '#64748b';
             } else if (d.status === 'Building') {
                 el.innerHTML = '🔄 New build in progress...';
                 el.style.color = '#d97706';
@@ -221,13 +206,11 @@
     setInterval(checkStatus, 10000);
 </script>
 {% endif %}
-
 <script>
   const API = window.location.origin;
   let yieldChartInstance = null;
   let featureChartInstance = null;
   let climateChartInstance = null;
-
   // -----------------------------------------------
   // UTILITY
   // -----------------------------------------------
@@ -236,11 +219,9 @@
     box.textContent = msg;
     box.style.display = msg ? "block" : "none";
   }
-
   function showLoading(visible) {
     document.getElementById("loadingBox").style.display = visible ? "block" : "none";
   }
-
   // -----------------------------------------------
   // ON PAGE LOAD
   // -----------------------------------------------
@@ -248,7 +229,6 @@
     await loadLocations();
     await loadFeatureImportance();
   });
-
   // -----------------------------------------------
   // LOAD COUNTRIES
   // -----------------------------------------------
@@ -263,7 +243,6 @@
       select.appendChild(opt);
     });
   }
-
   // -----------------------------------------------
   // COUNTRY CHANGE -> LOAD CROPS
   // -----------------------------------------------
@@ -280,9 +259,7 @@
     document.getElementById("statsRow").style.display = "none";
     document.getElementById("placeholder").style.display = "block";
     showError("");
-
     if (!area) return;
-
     const res = await fetch(`${API}/api/crops?area=${encodeURIComponent(area)}`);
     const crops = await res.json();
     crops.forEach(crop => {
@@ -292,7 +269,6 @@
       cropSelect.appendChild(opt);
     });
   });
-
   // -----------------------------------------------
   // CROP CHANGE -> LOAD CHART DATA
   // -----------------------------------------------
@@ -300,13 +276,11 @@
     const crop = this.value;
     const area = document.getElementById("countrySelect").value;
     if (!crop || !area) return;
-
     showLoading(true);
     showError("");
     document.getElementById("yieldCard").style.display = "none";
     document.getElementById("climateCard").style.display = "none";
     document.getElementById("placeholder").style.display = "none";
-
     try {
       const res = await fetch(
         `${API}/api/chart-data?area=${encodeURIComponent(area)}&crop=${encodeURIComponent(crop)}`
@@ -325,7 +299,6 @@
     }
     showLoading(false);
   });
-
   // -----------------------------------------------
   // RENDER YIELD CHART
   // -----------------------------------------------
@@ -334,14 +307,11 @@
     card.style.display = "block";
     document.getElementById("yieldTitle").textContent =
       `${crop} Yield in ${area} — Actual vs Predicted`;
-
     const labels   = data.map(d => d.year);
     const actual   = data.map(d => d.actual);
     const predicted = data.map(d => d.predicted);
-
     if (yieldChartInstance) yieldChartInstance.destroy();
     const ctx = document.getElementById("yieldChart").getContext("2d");
-
     yieldChartInstance = new Chart(ctx, {
       type: "line",
       data: {
@@ -388,7 +358,6 @@
       }
     });
   }
-
   // -----------------------------------------------
   // RENDER CLIMATE CHART (DUAL AXIS)
   // -----------------------------------------------
@@ -396,14 +365,11 @@
     const card = document.getElementById("climateCard");
     card.style.display = "block";
     document.getElementById("climateTitle").textContent = `Historical Climate Data for ${area}`;
-
     const labels = data.map(d => d.year);
     const temps  = data.map(d => d.avg_temp);
     const rains  = data.map(d => d.rainfall);
-
     if (climateChartInstance) climateChartInstance.destroy();
     const ctx = document.getElementById("climateChart").getContext("2d");
-
     climateChartInstance = new Chart(ctx, {
       type: "line",
       data: {
@@ -469,7 +435,6 @@
       }
     });
   }
-
   // -----------------------------------------------
   // RENDER STAT BOXES
   // -----------------------------------------------
@@ -482,7 +447,6 @@
     document.getElementById("statYears").textContent = data.length;
     document.getElementById("statsRow").style.display = "flex";
   }
-
   // -----------------------------------------------
   // RENDER FEATURE IMPORTANCE CHART
   // -----------------------------------------------
@@ -491,10 +455,8 @@
     const data = await res.json();
     const labels     = data.map(d => d.feature);
     const importance = data.map(d => (d.importance * 100).toFixed(1));
-
     if (featureChartInstance) featureChartInstance.destroy();
     const ctx = document.getElementById("featureChart").getContext("2d");
-
     featureChartInstance = new Chart(ctx, {
       type: "bar",
       data: {
