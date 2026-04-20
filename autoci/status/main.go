@@ -10,10 +10,11 @@ import (
 )
 
 type Build struct {
-    Commit string `json:"commit"`
-    Status string `json:"status"`
-    Log    string `json:"log"`
-    Time   string `json:"time"`
+    Commit  string `json:"commit"`
+    Status  string `json:"status"`
+    Log     string `json:"log"`
+    Time    string `json:"time"`
+    EndTime string `json:"endTime"`
 }
 
 var (
@@ -28,16 +29,12 @@ func loadBuilds() {
     b, err := os.ReadFile(dataFile)
     if err == nil {
         json.Unmarshal(b, &builds)
-        log.Printf("Loaded %d builds from disk", len(builds))
-    } else {
-        log.Println("No existing build data found. Starting fresh.")
     }
 }
 
 func saveBuilds() {
     b, err := json.MarshalIndent(builds, "", "  ")
     if err == nil {
-        // Write safely to a temp file, then rename to prevent corruption if container crashes mid-write
         os.WriteFile(tempFile, b, 0644)
         os.Rename(tempFile, dataFile)
     }
@@ -46,7 +43,6 @@ func saveBuilds() {
 func main() {
     loadBuilds()
 
-    // API: Receive updates from Builder
     http.HandleFunc("/update", func(w http.ResponseWriter, r *http.Request) {
         var update Build
         json.NewDecoder(r.Body).Decode(&update)
@@ -58,6 +54,10 @@ func main() {
             }
             builds = append([]Build{update}, builds...)
         } else {
+            // If transitioning from Building to Finished, mark the end time
+            if builds[0].Status == "Building" && (update.Status == "Success" || update.Status == "Failed" || update.Status == "Cancelled") {
+                builds[0].EndTime = time.Now().Format(time.RFC3339)
+            }
             builds[0].Status = update.Status
             builds[0].Log = update.Log
             if update.Time != "" {
@@ -66,17 +66,14 @@ func main() {
         }
         saveBuilds()
         mu.Unlock()
-        
         w.WriteHeader(http.StatusOK)
     })
 
-    // API: Time provider
     http.HandleFunc("/api/time", func(w http.ResponseWriter, r *http.Request) {
         w.Header().Set("Content-Type", "application/json")
         json.NewEncoder(w).Encode(map[string]string{"time": time.Now().Format(time.RFC3339)})
     })
 
-    // API: AJAX latest status for the webapp footer
     http.HandleFunc("/api/latest", func(w http.ResponseWriter, r *http.Request) {
         mu.Lock()
         defer mu.Unlock()
@@ -89,7 +86,6 @@ func main() {
         }
     })
 
-    // API: All builds for the UI
     http.HandleFunc("/api/all", func(w http.ResponseWriter, r *http.Request) {
         mu.Lock()
         defer mu.Unlock()
@@ -97,7 +93,6 @@ func main() {
         json.NewEncoder(w).Encode(builds)
     })
 
-    // UI: Dashboard
     http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
         html := `
 <!DOCTYPE html>
@@ -107,26 +102,26 @@ func main() {
     <title>CI Build Status</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0d1117; color: #c9d1d9; margin: 40px; }
-        h1 { margin-bottom: 30px; }
+        h1 { margin-bottom: 30px; display: flex; align-items: center; justify-content: space-between; }
         h1 a { color: #58a6ff; text-decoration: none; }
         .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; margin-bottom: 15px; overflow: hidden; }
         .card-header { padding: 15px 20px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; background: #21262d; transition: background 0.2s; }
         .card-header:hover { background: #30363d; }
         .card-body { padding: 0; display: none; border-top: 1px solid #30363d; }
         .status-Success { color: #3fb950; font-weight: bold; background: rgba(63, 185, 80, 0.1); padding: 4px 8px; border-radius: 4px; }
-        .status-Building { color: #d29922; font-weight: bold; background: rgba(210, 153, 34, 0.1); padding: 4px 8px; border-radius: 4px; animation: blink 1.5s infinite; }
+        .status-Building { color: #d29922; font-weight: bold; background: rgba(210, 153, 34, 0.1); padding: 4px 8px; border-radius: 4px; }
         .status-Failed, .status-Cancelled { color: #f85149; font-weight: bold; background: rgba(248, 81, 73, 0.1); padding: 4px 8px; border-radius: 4px; }
         pre { background: #010409; padding: 20px; margin: 0; overflow-x: auto; color: #8b949e; font-size: 13px; max-height: 500px; overflow-y: auto; }
-        .commit-link { color: #58a6ff; text-decoration: none; font-family: monospace; font-size: 1.1em; }
-        .commit-link:hover { text-decoration: underline; }
-        @keyframes blink { 50% { opacity: 0.6; } }
+        .commit-link, .permalink { color: #58a6ff; text-decoration: none; font-family: monospace; }
+        .commit-link:hover, .permalink:hover { text-decoration: underline; }
+        .permalink { margin-right: 15px; font-size: 0.9em; color: #8b949e; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+        .spinner { display: inline-block; animation: spin 1s linear infinite; margin-right: 5px; }
     </style>
 </head>
 <body>
-    <h1><a href="javascript:window.location.reload()">🚀 Live Build Status</a></h1>
-    <div id="builds-container">
-        <p style="color: #8b949e;">Loading builds...</p>
-    </div>
+    <h1><a href="?">🚀 Live Build Status</a></h1>
+    <div id="builds-container"><p style="color: #8b949e;">Loading builds...</p></div>
 
     <script>
         function toggle(id) {
@@ -134,51 +129,82 @@ func main() {
             el.style.display = el.style.display === 'block' ? 'none' : 'block';
         }
 
-        // Dynamically fix the path to survive reverse proxies missing trailing slashes
-        const basePath = window.location.pathname.endsWith('/') 
-            ? window.location.pathname 
-            : window.location.pathname + '/';
+        const basePath = window.location.pathname.endsWith('/') ? window.location.pathname : window.location.pathname + '/';
+        const urlParams = new URLSearchParams(window.location.search);
+        const filterCommit = urlParams.get('commit');
+
+        function formatDuration(start, end) {
+            const s = new Date(start);
+            const e = end ? new Date(end) : new Date();
+            const diff = Math.max(0, Math.floor((e - s) / 1000));
+            const m = Math.floor(diff / 60);
+            const sec = diff % 60;
+            return m + 'm ' + sec + 's';
+        }
 
         async function fetchBuilds() {
             try {
                 const res = await fetch(basePath + 'api/all');
-                if (!res.ok) throw new Error("HTTP " + res.status);
-                
                 const builds = await res.json();
                 const container = document.getElementById('builds-container');
                 
-                if (!builds || builds.length === 0) {
-                    container.innerHTML = '<p style="color: #8b949e;">No builds have been triggered yet.</p>';
-                    return;
-                }
+                if (!builds || builds.length === 0) return;
 
                 let html = '';
                 builds.forEach((b, i) => {
-                    const isOpen = (i === 0 || b.status === 'Building') ? 'block' : 'none';
+                    if (filterCommit && b.commit !== filterCommit) return;
+
+                    const isOpen = (filterCommit || i === 0 || b.status === 'Building') ? 'block' : 'none';
                     const shortCommit = b.commit.substring(0, 7) || 'Manual';
+                    
+                    let timeInfo = '';
+                    if (b.status === 'Building') {
+                        timeInfo = '<span class="spinner">↻</span> Building (' + formatDuration(b.time, null) + ')';
+                    } else {
+                        timeInfo = 'Took ' + formatDuration(b.time, b.endTime || b.time);
+                    }
                     
                     html += '<div class="card">';
                     html += '  <div class="card-header" onclick="toggle(\'' + b.commit + '\')">';
-                    html += '    <div><strong>Commit:</strong> <a href="https://github.com/nonbinary-duck/SUSTAINTimeseriesHackathon/commit/' + b.commit + '" class="commit-link" target="_blank" onclick="event.stopPropagation()">' + shortCommit + '</a></div>';
-                    html += '    <div><span style="color: #8b949e; margin-right: 15px;">' + b.time + '</span> <span class="status-' + b.status + '">' + b.status + '</span></div>';
+                    html += '    <div>';
+                    html += '      <a href="?commit=' + b.commit + '" class="permalink" title="Permalink to this build" onclick="event.stopPropagation()">🔗</a>';
+                    html += '      <strong>Commit:</strong> <a href="https://github.com/nonbinary-duck/SUSTAINTimeseriesHackathon/commit/' + b.commit + '" class="commit-link" target="_blank" onclick="event.stopPropagation()">' + shortCommit + '</a>';
+                    html += '    </div>';
+                    html += '    <div><span style="color: #8b949e; margin-right: 15px;">' + timeInfo + '</span> <span class="status-' + b.status + '">' + b.status + '</span></div>';
                     html += '  </div>';
                     html += '  <div class="card-body" id="body-' + b.commit + '" style="display: ' + isOpen + ';">';
-                    html += '    <pre>' + (b.log || 'Waiting for logs...') + '</pre>';
+                    html += '    <pre class="log-content" data-commit="' + b.commit + '">' + (b.log || 'Waiting for logs...') + '</pre>';
                     html += '  </div>';
                     html += '</div>';
                 });
                 
-                if (container.getAttribute('data-hash') !== JSON.stringify(builds.map(b => b.status + b.log.length))) {
+                const currentHash = JSON.stringify(builds.map(b => b.status + b.log.length));
+                if (container.getAttribute('data-hash') !== currentHash) {
+                    const scrollStates = {};
+                    document.querySelectorAll('.log-content').forEach(pre => {
+                        const commit = pre.getAttribute('data-commit');
+                        const isAtBottom = Math.abs(pre.scrollHeight - pre.clientHeight - pre.scrollTop) <= 30;
+                        scrollStates[commit] = { scrollTop: pre.scrollTop, isAtBottom: isAtBottom };
+                    });
+
                     container.innerHTML = html;
-                    container.setAttribute('data-hash', JSON.stringify(builds.map(b => b.status + b.log.length)));
+                    container.setAttribute('data-hash', currentHash);
+
+                    document.querySelectorAll('.log-content').forEach(pre => {
+                        const commit = pre.getAttribute('data-commit');
+                        const state = scrollStates[commit];
+                        if (state) {
+                            pre.scrollTop = state.isAtBottom ? pre.scrollHeight : state.scrollTop;
+                        } else {
+                            pre.scrollTop = pre.scrollHeight;
+                        }
+                    });
                 }
-            } catch (e) {
-                console.error("Failed to fetch builds:", e);
-            }
+            } catch (e) { console.error(e); }
         }
 
         fetchBuilds();
-        setInterval(fetchBuilds, 1500);
+        setInterval(fetchBuilds, 1000);
     </script>
 </body>
 </html>`

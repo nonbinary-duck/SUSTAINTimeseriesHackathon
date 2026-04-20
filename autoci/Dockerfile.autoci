@@ -3,49 +3,18 @@ FROM python:3.11-slim
 ARG COMMIT_ID
 ARG BUILD_TIME
 
+# Set environment variables so the Flask app knows it's inside the CI
+ENV CI_AUTO_BUILD=true
+ENV COMMIT_ID=${COMMIT_ID}
+ENV BUILD_TIME=${BUILD_TIME}
+
 RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
-# Pulls directly from GitHub via HTTPS
 RUN git clone https://github.com/nonbinary-duck/SUSTAINTimeseriesHackathon.git .
 WORKDIR /app/webapp
 
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Dynamically inject the footer and AJAX script
-RUN cat <<EOF > inject.html
-<div style="background: #ffffff; border-top: 2px solid #e2e8f0; padding: 15px; margin-top: 40px; text-align: center; color: #334155; font-size: 14px; position: relative; z-index: 1000; box-shadow: 0 -4px 6px -1px rgba(0, 0, 0, 0.05);">
-    <strong>System Built at:</strong> ${BUILD_TIME} | 
-    <strong>Commit:</strong> <a href="https://github.com/nonbinary-duck/SUSTAINTimeseriesHackathon/commit/${COMMIT_ID}" style="color: #2563eb; text-decoration: none; font-family: monospace;">${COMMIT_ID}</a> | 
-    <a href="/gitbuildstatus/" style="color: #2563eb; text-decoration: none;" target="_blank">View Build Logs</a> 
-    <span id="ci-live-status" style="margin-left: 10px; font-weight: bold; background: #f1f5f9; padding: 4px 8px; border-radius: 4px;">⏳ Checking status...</span>
-</div>
-<script>
-    function checkStatus() {
-        fetch('/gitbuildstatus/api/latest').then(r=>r.json()).then(d=>{
-            const el = document.getElementById('ci-live-status');
-            if (d.commit === '${COMMIT_ID}' && d.status === 'Success') {
-                el.innerHTML = '✅ Up to date';
-                el.style.color = '#16a34a';
-            } else if (d.status === 'Building') {
-                el.innerHTML = '🔄 New build in progress...';
-                el.style.color = '#d97706';
-            } else {
-                el.innerHTML = '❌ Outdated Build';
-                el.style.color = '#dc2626';
-            }
-        }).catch(e=>console.error(e));
-    }
-    checkStatus();
-    setInterval(checkStatus, 10000);
-</script>
-EOF
-
-# Safely remove closing tags, append the injection, and close tags back up
-RUN sed -i '/<\/body>/d' templates/index.html && \
-    sed -i '/<\/html>/d' templates/index.html && \
-    cat inject.html >> templates/index.html && \
-    echo "</body>\n</html>" >> templates/index.html
 
 ENV FLASK_RUN_HOST=0.0.0.0
 EXPOSE 5001
