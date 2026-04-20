@@ -1,0 +1,42 @@
+FROM python:3.11-slim
+
+ARG COMMIT_ID
+ARG BUILD_TIME
+
+RUN apt-get update && apt-get install -y --no-install-recommends git && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+# Pulls directly from GitHub via HTTPS
+RUN git clone https://github.com/nonbinary-duck/SUSTAINTimeseriesHackathon.git .
+
+WORKDIR /app/webapp
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Dynamically inject the footer and AJAX script
+RUN cat <<EOF > inject.html
+<div style="text-align:center; padding: 20px; color: #aaa; font-size: 12px; margin-top: 40px; border-top: 1px solid #ddd;">
+    Built <a href="https://github.com/nonbinary-duck/SUSTAINTimeseriesHackathon/commit/${COMMIT_ID}" style="color:#888">${COMMIT_ID}</a> 
+    (<a href="/gitbuildstatus/?commit=${COMMIT_ID}" style="color:#888">log</a>) at ${BUILD_TIME} 
+    <span id="ci-live-status">⏳</span>
+</div>
+<script>
+    fetch('/gitbuildstatus/api/latest').then(r=>r.json()).then(d=>{
+        const el = document.getElementById('ci-live-status');
+        if (d.commit === '${COMMIT_ID}' && d.status === 'Success') {
+            el.innerHTML = '✅ (Up to date)';
+        } else if (d.status === 'Building') {
+            el.innerHTML = '🔄 (New build in progress...)';
+        } else {
+            el.innerHTML = '❌ (Outdated)';
+        }
+    }).catch(e=>console.error(e));
+</script>
+</body>
+EOF
+
+RUN sed -i -e '/<\/body>/r inject.html' -e 's/<\/body>//' templates/index.html
+
+ENV FLASK_RUN_HOST=0.0.0.0
+EXPOSE 5001
+
+CMD ["python", "app.py"]

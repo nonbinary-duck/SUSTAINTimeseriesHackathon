@@ -1,0 +1,66 @@
+services:
+  dockerproxy:
+    image: tecnativa/docker-socket-proxy:latest
+    container_name: dockerproxy
+    privileged: true
+    environment:
+      LOG_LEVEL: info
+      POST: 1
+      BUILD: 1
+      IMAGES: 1
+      CONTAINERS: 1
+      NETWORKS: 1
+      INFO: 1
+      VERSION: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: always
+    networks:
+      - ci-internal
+
+  builder:
+    build: ./builder
+    container_name: autoci-builder
+    environment:
+      DOCKER_HOST: tcp://dockerproxy:2375
+      STATUS_URL: http://status:8080/update
+      STATUS_TIME_URL: http://status:8080/api/time
+      TARGET_IMAGE: local/webapp-autoci:latest
+      TARGET_CONTAINER: webapp
+    volumes:
+      - ./Dockerfile.autoci:/app/Dockerfile.autoci:ro
+    depends_on:
+      - dockerproxy
+    restart: always
+    networks:
+      - ci-internal
+
+  receiver:
+    build: ./receiver
+    container_name: autoci-receiver
+    env_file: .env
+    environment:
+      BUILDER_URL: http://builder:8080/trigger
+    ports:
+      - "5002:8080"
+    depends_on:
+      - builder
+    restart: always
+    networks:
+      - ci-internal
+      - ci-public
+
+  status:
+    build: ./status
+    container_name: autoci-status
+    ports:
+      - "5003:8080"
+    restart: always
+    networks:
+      - ci-internal
+      - ci-public
+
+networks:
+  ci-internal:
+    internal: true
+  ci-public:
