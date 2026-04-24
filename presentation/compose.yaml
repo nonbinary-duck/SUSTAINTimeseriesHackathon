@@ -1,0 +1,8 @@
+services:
+  latex:
+    build: .
+    container_name: latex_build
+    volumes:
+      - .:/workdir
+    # This command runs when you call 'docker-compose up'
+    command: lualatex -interaction=nonstopmode main.tex
