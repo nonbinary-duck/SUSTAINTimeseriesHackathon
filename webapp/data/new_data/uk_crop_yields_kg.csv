@@ -1,0 +1,289 @@
+Crop,Year,Yield_kg_per_ha
+Barley,1984,5588.59
+Barley,1985,4951.01
+Barley,1986,5226.51
+Barley,1987,5034.64
+Barley,1988,4666.44
+Barley,1989,4880.26
+Barley,1990,5214.9
+Barley,1991,5468.92
+Barley,1992,5669.57
+Barley,1993,5177.98
+Barley,1994,5373.86
+Barley,1995,5734.4
+Barley,1996,6100.0
+Barley,1997,5800.0
+Barley,1998,5300.0
+Barley,1999,5600.0
+Barley,2000,5760.0
+Barley,2001,5390.0
+Barley,2002,5570.0
+Barley,2003,5910.0
+Barley,2004,5760.0
+Barley,2005,5860.0
+Barley,2006,5940.0
+Barley,2007,5660.0
+Barley,2008,5950.0
+Barley,2009,5833.77
+Barley,2010,5702.5
+Barley,2011,5663.92
+Barley,2012,5510.98
+Barley,2013,5846.9
+Barley,2014,6400.0
+Barley,2015,6694.25
+Barley,2016,5930.0
+Barley,2017,6091.93
+Barley,2018,5720.0
+Barley,2019,6920.0
+Barley,2020,5850.0
+Barley,2021,6053.04
+Barley,2022,6617.38
+Barley,2023,6124.01
+Barley,2024,5938.86
+Cereals,1984,6585.31
+Cereals,1985,5593.5
+Cereals,1986,6079.69
+Cereals,1987,5502.08
+Cereals,1988,5411.14
+Cereals,1989,5863.21
+Cereals,1990,6170.65
+Cereals,1991,6464.46
+Cereals,1992,6323.09
+Cereals,1993,6429.13
+Cereals,1994,6558.26
+Cereals,1995,6873.07
+Cereals,1996,7320.7
+Cereals,1997,6696.35
+Cereals,1998,6661.28
+Cereals,1999,7043.27
+Cereals,2000,7164.98
+Cereals,2001,6291.29
+Cereals,2002,7077.1
+Cereals,2003,7037.59
+Cereals,2004,7038.06
+Cereals,2005,7194.21
+Cereals,2006,7275.97
+Cereals,2007,6630.4
+Cereals,2008,7416.2
+Cereals,2009,7028.67
+Cereals,2010,6951.4
+Cereals,2011,6986.22
+Cereals,2012,6211.13
+Cereals,2013,6631.99
+Cereals,2014,7696.71
+Cereals,2015,7979.8
+Cereals,2016,7012.95
+Cereals,2017,7229.88
+Cereals,2018,6788.88
+Cereals,2019,7947.18
+Cereals,2020,6241.19
+Cereals,2021,6966.79
+Cereals,2022,7644.33
+Cereals,2023,7137.89
+Cereals,2024,6555.59
+Linseed,1993,750.0
+Linseed,1994,1360.0
+Linseed,1995,1350.0
+Linseed,1996,1458.0
+Linseed,1997,1650.0
+Linseed,1998,1570.0
+Linseed,1999,1550.0
+Linseed,2000,1298.09
+Linseed,2001,1250.0
+Linseed,2002,1380.0
+Linseed,2003,1530.0
+Linseed,2004,1521.4
+Linseed,2005,1589.69
+Linseed,2006,1481.37
+Linseed,2007,1402.0
+Oats,1984,4915.66
+Oats,1985,4615.95
+Oats,1986,5192.74
+Oats,1987,4582.22
+Oats,1988,4566.67
+Oats,1989,4453.3
+Oats,1990,4968.42
+Oats,1991,5052.39
+Oats,1992,4997.21
+Oats,1993,5210.51
+Oats,1994,5502.56
+Oats,1995,5517.43
+Oats,1996,6100.0
+Oats,1997,5800.0
+Oats,1998,6000.0
+Oats,1999,5900.0
+Oats,2000,5880.0
+Oats,2001,5490.0
+Oats,2002,6030.0
+Oats,2003,6160.0
+Oats,2004,5800.0
+Oats,2005,5840.0
+Oats,2006,5990.0
+Oats,2007,5500.0
+Oats,2008,5800.0
+Oats,2009,5767.44
+Oats,2010,5524.19
+Oats,2011,5623.85
+Oats,2012,5139.34
+Oats,2013,5458.0
+Oats,2014,5975.0
+Oats,2015,6090.0
+Oats,2016,5790.0
+Oats,2017,5431.73
+Oats,2018,4970.0
+Oats,2019,5930.0
+Oats,2020,4910.0
+Oats,2021,5615.0
+Oats,2022,5721.59
+Oats,2023,4970.06
+Oats,2024,5417.58
+Oilseed rape,1993,1374.12
+Oilseed rape,1994,2131.52
+Oilseed rape,1995,2405.95
+Oilseed rape,1996,2893.62
+Oilseed rape,1997,2999.23
+Oilseed rape,1998,2670.0
+Oilseed rape,1999,3168.02
+Oilseed rape,2000,2761.78
+Oilseed rape,2001,2483.89
+Oilseed rape,2002,2948.82
+Oilseed rape,2003,2713.61
+Oilseed rape,2004,2468.22
+Oilseed rape,2005,2546.99
+Oilseed rape,2006,2852.12
+Oilseed rape,2007,2606.1
+Potatoes,2011,30441.43
+Potatoes,2012,31499.27
+Potatoes,2013,22373.1
+Potatoes,2014,21497.48
+Potatoes,2015,28381.11
+Potatoes,2016,34038.56
+Potatoes,2017,31666.63
+Potatoes,2018,34191.66
+Potatoes,2019,31973.18
+Potatoes,2020,35929.65
+Potatoes,2021,29828.1
+Potatoes,2022,37193.35
+Potatoes,2023,35885.2
+Potatoes,2024,36089.58
+Protein crops,1990,3410.0
+Protein crops,1991,3240.0
+Protein crops,1992,3450.0
+Protein crops,1993,3750.0
+Protein crops,1994,3040.0
+Protein crops,1995,2690.0
+Protein crops,1996,3170.0
+Protein crops,1997,3800.0
+Protein crops,1998,3410.0
+Protein crops,1999,3500.0
+Protein crops,2000,3900.0
+Protein crops,2001,3500.0
+Protein crops,2002,3850.0
+Protein crops,2003,3880.0
+Protein crops,2004,3720.0
+Protein crops,2005,3830.0
+Protein crops,2006,3350.0
+Protein crops,2007,3040.0
+Protein crops,2008,4450.0
+Protein crops,2009,3700.0
+Protein crops,2010,3450.0
+Protein crops,2011,3350.0
+Protein crops,2012,3300.0
+Protein crops,2013,3200.0
+Protein crops,2014,4190.0
+Protein crops,2015,4350.0
+Protein crops,2016,3678.0
+Protein crops,2017,4000.0
+Protein crops,2018,2600.0
+Protein crops,2019,4000.0
+Protein crops,2020,3000.0
+Protein crops,2021,3700.0
+Protein crops,2022,3000.0
+Protein crops,2023,3200.0
+Protein crops,2024,3400.0
+Sugar beet,1980,34647.89
+Sugar beet,1981,35214.29
+Sugar beet,1982,49058.82
+Sugar beet,1983,37658.29
+Sugar beet,1984,45311.56
+Sugar beet,1985,37643.9
+Sugar beet,1986,39600.0
+Sugar beet,1987,39564.36
+Sugar beet,1988,40557.21
+Sugar beet,1989,41182.74
+Sugar beet,1990,40731.96
+Sugar beet,1991,44392.86
+Sugar beet,1992,51512.69
+Sugar beet,1993,49065.99
+Sugar beet,1994,44717.95
+Sugar beet,1995,43015.31
+Sugar beet,1996,52361.81
+Sugar beet,1997,56548.93
+Sugar beet,1998,53002.56
+Sugar beet,1999,57952.51
+Sugar beet,2000,52513.91
+Sugar beet,2001,46991.8
+Sugar beet,2002,56504.36
+Sugar beet,2003,56551.87
+Sugar beet,2004,58749.48
+Sugar beet,2005,58579.09
+Sugar beet,2006,56859.87
+Sugar beet,2007,53870.08
+Sugar beet,2008,63861.02
+Sugar beet,2009,74017.46
+Sugar beet,2010,53635.9
+Sugar beet,2011,75541.65
+Sugar beet,2012,62139.87
+Sugar beet,2013,69855.84
+Sugar beet,2014,79841.59
+Sugar beet,2015,74136.6
+Sugar beet,2016,71206.69
+Sugar beet,2017,83397.83
+Sugar beet,2018,69060.55
+Sugar beet,2019,77658.4
+Sugar beet,2020,56560.37
+Sugar beet,2021,81107.2
+Sugar beet,2022,63857.99
+Sugar beet,2023,78217.21
+Sugar beet,2024,76343.73
+Wheat,1984,7713.25
+Wheat,1985,6332.42
+Wheat,1986,6964.21
+Wheat,1987,5987.87
+Wheat,1988,6230.92
+Wheat,1989,6737.08
+Wheat,1990,6969.26
+Wheat,1991,7251.43
+Wheat,1992,6819.3
+Wheat,1993,7326.86
+Wheat,1994,7351.98
+Wheat,1995,7699.16
+Wheat,1996,8100.0
+Wheat,1997,7400.0
+Wheat,1998,7600.0
+Wheat,1999,8100.0
+Wheat,2000,8010.0
+Wheat,2001,7060.0
+Wheat,2002,8030.0
+Wheat,2003,7760.0
+Wheat,2004,7770.0
+Wheat,2005,7960.0
+Wheat,2006,8040.0
+Wheat,2007,7224.59
+Wheat,2008,8280.0
+Wheat,2009,7930.14
+Wheat,2010,7673.03
+Wheat,2011,7747.09
+Wheat,2012,6657.13
+Wheat,2013,7381.42
+Wheat,2014,8579.0
+Wheat,2015,8970.0
+Wheat,2016,7890.0
+Wheat,2017,8280.34
+Wheat,2018,7760.0
+Wheat,2019,8940.0
+Wheat,2020,6960.0
+Wheat,2021,7814.53
+Wheat,2022,8571.43
+Wheat,2023,8127.91
+Wheat,2024,7280.21
