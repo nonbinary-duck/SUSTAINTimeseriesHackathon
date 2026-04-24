@@ -89,11 +89,89 @@
 \begin{document}
 % Title page (Berlin will put the logo at the top left)
 \frame{\titlepage}
-    % Example slide
 
     \section{Data Processing}
 
-    
+    \begin{frame}
+        \frametitle{Data Quality \& Integrity Issues}
+        \begin{itemize}
+            \item \textbf{Severe Data Attrition:} The raw dataset contains 169,386 records, but only 44,135 rows survive the merging process---a massive \textbf{$\sim$74\% data loss}.
+            \item \textbf{Geographical Mismatches:} This attrition is primarily driven by uneven country coverage across the source files. Crop data covers 270 countries, rainfall covers 217, and temperature data covers only 137. 
+            \item \textbf{Temporal Gaps Root Cause:} The years \textbf{1988} and \textbf{2003} are completely absent from the final timeline because they are missing directly from the source \texttt{rainfall.csv} file.
+            \item \textbf{Data Type Anomalies:} The \textit{average\_rain\_fall} column introduces mixed data types (strings instead of floats) during the merge, requiring coercion/cleaning before modeling.
+            \item \textbf{Validation Strategy:} Implemented a chronological split on the surviving rows:
+            \begin{itemize}
+                \item \textbf{Training Set ($<$ 2009):} 35,749 rows (81\% of data).
+                \item \textbf{Test/Validation Set ($\ge$ 2009):} 8,386 rows (19\% of data).
+            \end{itemize}
+        \end{itemize}
+    \end{frame}
+
+    \section{Results}
+
+    \begin{frame}
+        \frametitle{Model Performance}
+        \begin{itemize}
+            \item \textbf{R-Squared ($R^2$):} 0.8941
+            \begin{itemize}
+                \item The model is highly explanatory, successfully capturing \textbf{89.4\%} of the variance in crop yields across the validation set.
+            \end{itemize}
+            \vspace{0.3cm} % Adds a little vertical spacing between points
+            \item \textbf{Mean Absolute Error (MAE):} 16,397 kg/ha
+            \begin{itemize}
+                \item On average, our predictions deviate by roughly 16.4k kilograms per hectare from the true observed yields.
+            \end{itemize}
+            \vspace{0.3cm}
+            \item \textbf{Baseline Context \& Relative Error:} 
+            \begin{itemize}
+                \item The global average yield across the dataset is \textbf{74,706.46 kg/ha}.
+                \item Contextually, our MAE represents an average relative error of just \textbf{$\sim$22\%} ($16,397 / 74,706$), demonstrating highly robust predictive capability despite the severe historical data gaps.
+            \end{itemize}
+        \end{itemize}
+    \end{frame}
+
+    \begin{frame}
+        \frametitle{Overcoming Attrition: Custom UK Data Pipelines}
+        To resolve the severe data loss and geographical mismatches of the raw dataset, we built custom Python pipelines to source high-quality, localized UK data directly:
+        
+        \begin{itemize}
+            \item \textbf{Agricultural Data Extraction:} 
+            Developed \texttt{get\_yield.py} to parse official government spreadsheets (\texttt{AUK-chapter7.ods}). The script maps tables to 12 distinct crop categories (e.g., Wheat, Barley, Potatoes) and standardizes calculations to yield in kg/ha.
+            
+            \item \textbf{Meteorological Data Scraping:} 
+            Scraped decades of historical weather data across 36 Met Office stations, explicitly filtering out anomalous stations (e.g., Lerwick) and coercing missing data into safe \texttt{NaN} types.
+            
+            \item \textbf{Robust Aggregation:} 
+            Calculated true yearly averages for temperature, frost days, rainfall, and sun hours, automatically skipping missing values so the final averages are not distorted.
+        \end{itemize}
+    \end{frame}
+
+    \begin{frame}[fragile]
+        \frametitle{Pipeline Execution \& Data Validation}
+        
+        Running our custom extraction scripts successfully bypassed the structural issues in the original dataset, generating a clean, validated baseline for our models.
+        
+        \begin{exampleblock}{Crop Yield Pipeline Output}
+\begin{verbatim}
+$ python3 get_yield.py 
+Loading AUK-chapter7-20250710.ods...
+Processing Table_7_1 -> Cereals
+Processing Table_7_2 -> Wheat
+Processing Table_7_3 -> Barley
+Processing Table_7_4 -> Oats
+Processing Table_7_5 -> Oilseed rape
+Processing Table_7_6 -> Sugar beet
+Processing Table_7_7 -> Protein crops
+Processing Table_7_8 -> Fresh vegetables
+Processing Table_7_9 -> Plants and flowers
+Processing Table_7_10 -> Potatoes
+Processing Table_7_11 -> Fresh fruit
+Processing Table_7_12 -> Linseed
+
+Success! Saved 288 data points to uk_crop_yields_kg.csv
+\end{verbatim}
+        \end{exampleblock}
+    \end{frame}
 
     \begin{frame}
         \frametitle{It's On The Internet!}
