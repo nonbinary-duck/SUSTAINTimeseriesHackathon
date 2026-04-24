@@ -171,6 +171,77 @@ Processing Table_7_12 -> Linseed
 Success! Saved 288 data points to uk_crop_yields_kg.csv
 \end{verbatim}
         \end{exampleblock}
+    
+    \section{New Data Results}
+    
+        
+    \end{frame}
+
+        \begin{frame}
+        \frametitle{Modeling: XGBoost on Cleaned UK Data}
+        \begin{columns}
+            \begin{column}{0.5\textwidth}
+                \textbf{Dataset \& Strategy}
+                \begin{itemize}
+                    \item \textbf{Shape:} 288 records, 8 features.
+                    \item \textbf{Inputs:} Crop type, Year, and 5 Met Office weather variables.
+                    \item \textbf{Validation:} Strict chronological split to prevent time-series data leakage:
+                    \begin{itemize}
+                        \item \textbf{Train:} 172 rows ($\le$ 2007)
+                        \item \textbf{Test:} 116 rows ($\ge$ 2008)
+                    \end{itemize}
+                \end{itemize}
+            \end{column}
+            
+            \begin{column}{0.5\textwidth}
+                \textbf{Model Performance}
+                \vspace{0.3cm}
+                
+                \begin{block}{Testing Metrics}
+                    \begin{itemize}
+                        \item \textbf{R\textsuperscript{2} Score:} \textbf{0.7041}
+                        \item \textbf{MAE:} \textbf{6,742 kg/ha}
+                    \end{itemize}
+                \end{block}
+                \vspace{0.3cm}
+                \textit{Training logs showed steady RMSE reduction, converging optimally around $\sim$250 boosting rounds without immediate overfitting.}
+            \end{column}
+        \end{columns}
+    \end{frame}
+
+    \begin{frame}
+        \frametitle{XGBoost: Feature Importance Analysis}
+        \begin{columns}
+            \begin{column}{0.45\textwidth}
+                \begin{table}
+                    \centering
+                    \small
+                    \renewcommand{\arraystretch}{1.2}
+                    \begin{tabular}{lr}
+                        \hline
+                        \textbf{Feature} & \textbf{Importance} \\
+                        \hline
+                        \textbf{Crop (encoded)} & 87.49\% \\
+                        \textbf{Year} & 4.72\% \\
+                        Frost Days (\texttt{af\_days}) & 2.06\% \\
+                        Sun Hours (\texttt{sun\_hours}) & 1.83\% \\
+                        Min Temp (\texttt{tmin\_degC}) & 1.69\% \\
+                        Rainfall (\texttt{rain\_mm}) & 1.22\% \\
+                        Max Temp (\texttt{tmax\_degC}) & 0.99\% \\
+                        \hline
+                    \end{tabular}
+                \end{table}
+            \end{column}
+            
+            \begin{column}{0.55\textwidth}
+                \textbf{Key Insights:}
+                \begin{itemize}
+                    \item \textbf{Biological Baseline:} \texttt{Crop} type dominates ($\sim$87.5\%). This is physically expected, as the base mass/yield of different crops (e.g., heavy Sugar Beet vs. light Linseed) varies massively.
+                    \item \textbf{Agri-Tech Progress:} The \texttt{Year} variable (4.7\%) successfully captures historical macro-trends, such as improvements in farming practices and fertilizers.
+                    \item \textbf{Climatic Impact:} Weather conditions account for the remaining $\sim$7.8\%, with frost days and sunlight driving more yield variance than raw rainfall.
+                \end{itemize}
+            \end{column}
+        \end{columns}
     \end{frame}
 
     \begin{frame}

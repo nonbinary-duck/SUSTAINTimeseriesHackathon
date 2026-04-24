@@ -122,8 +122,16 @@
 <div class="container">
   <h1>🌾 Crop Yield Predictor</h1>
   <p class="subtitle">ML-powered yield predictions using temperature, rainfall &amp; historical data</p>
+  
   <!-- CONTROLS -->
   <div class="controls">
+    <div class="select-group">
+      <label for="datasetSelect">Dataset Region</label>
+      <select id="datasetSelect">
+        <option value="global">Global (FAO)</option>
+        <option value="uk">United Kingdom (Detailed)</option>
+      </select>
+    </div>
     <div class="select-group">
       <label for="countrySelect">Country</label>
       <select id="countrySelect">
@@ -137,48 +145,54 @@
       </select>
     </div>
   </div>
+
   <div class="error" id="errorBox"></div>
   <div class="loading" id="loadingBox">Loading predictions...</div>
+
   <!-- STAT BOXES -->
   <div class="stats-row" id="statsRow" style="display:none;">
     <div class="stat-box">
       <div class="stat-value" id="statLatestActual">-</div>
-      <div class="stat-label">Latest Actual Yield (hg/ha)</div>
+      <div class="stat-label" id="labelLatestActual">Latest Actual Yield</div>
     </div>
     <div class="stat-box">
       <div class="stat-value" id="statLatestPred">-</div>
-      <div class="stat-label">Latest Predicted Yield (hg/ha)</div>
+      <div class="stat-label" id="labelLatestPred">Latest Predicted Yield</div>
     </div>
     <div class="stat-box">
       <div class="stat-value" id="statYears">-</div>
       <div class="stat-label">Years of Data</div>
     </div>
   </div>
+
   <!-- YIELD CHART -->
   <div class="card" id="yieldCard" style="display:none;">
     <h2 id="yieldTitle">Actual vs Predicted Yield</h2>
-    <p class="card-sub">Yield measured in hg/ha (hectograms per hectare)</p>
+    <p class="card-sub" id="yieldSub">Yield measured dynamically</p>
     <canvas id="yieldChart"></canvas>
   </div>
+
   <!-- CLIMATE CHART -->
   <div class="card" id="climateCard" style="display:none;">
     <h2 id="climateTitle">Historical Climate Data</h2>
     <p class="card-sub">Temperature (left axis) vs Rainfall (right axis)</p>
     <canvas id="climateChart"></canvas>
   </div>
+
   <!-- FEATURE IMPORTANCE CHART -->
   <div class="card">
     <h2>What Drives Yield?</h2>
-    <p class="card-sub">XGBoost feature importance scores</p>
+    <p class="card-sub">XGBoost feature importance scores specific to this dataset</p>
     <canvas id="featureChart"></canvas>
   </div>
+
   <!-- PLACEHOLDER -->
   <div class="placeholder" id="placeholder">
-    Select a country and crop above to see yield predictions
+    Select a region, country, and crop above to see predictions
   </div>
 </div>
 
-<!-- CI FOOTER (Only injected if ENV variable is set) -->
+<!-- CI FOOTER -->
 {% if show_ci %}
 <div style="background: #f8fafc; border-top: 1px solid #e2e8f0; padding: 15px; margin-top: 40px; text-align: center; color: #64748b; font-size: 13px; position: relative; z-index: 1000;">
     <strong>System Built at:</strong> {{ build_time }} | 
@@ -206,11 +220,13 @@
     setInterval(checkStatus, 10000);
 </script>
 {% endif %}
+
 <script>
   const API = window.location.origin;
   let yieldChartInstance = null;
   let featureChartInstance = null;
   let climateChartInstance = null;
+
   // -----------------------------------------------
   // UTILITY
   // -----------------------------------------------
@@ -222,6 +238,14 @@
   function showLoading(visible) {
     document.getElementById("loadingBox").style.display = visible ? "block" : "none";
   }
+  function clearDashboard() {
+    document.getElementById("yieldCard").style.display = "none";
+    document.getElementById("climateCard").style.display = "none";
+    document.getElementById("statsRow").style.display = "none";
+    document.getElementById("placeholder").style.display = "block";
+    showError("");
+  }
+
   // -----------------------------------------------
   // ON PAGE LOAD
   // -----------------------------------------------
@@ -229,39 +253,64 @@
     await loadLocations();
     await loadFeatureImportance();
   });
+
+  // -----------------------------------------------
+  // REGION CHANGE
+  // -----------------------------------------------
+  document.getElementById("datasetSelect").addEventListener("change", async function () {
+    clearDashboard();
+    await loadLocations();
+    await loadFeatureImportance();
+  });
+
   // -----------------------------------------------
   // LOAD COUNTRIES
   // -----------------------------------------------
   async function loadLocations() {
-    const res = await fetch(`${API}/api/locations`);
+    const dataset = document.getElementById("datasetSelect").value;
+    const res = await fetch(`${API}/api/locations?dataset=${dataset}`);
     const locations = await res.json();
+    
     const select = document.getElementById("countrySelect");
+    select.innerHTML = '<option value="">-- Select Country --</option>';
+    
     locations.forEach(loc => {
       const opt = document.createElement("option");
       opt.value = loc;
       opt.textContent = loc;
       select.appendChild(opt);
     });
+
+    const cropSelect = document.getElementById("cropSelect");
+    cropSelect.innerHTML = '<option value="">-- Select Crop --</option>';
+    cropSelect.disabled = true;
+
+    // If UK dataset, automatically select United Kingdom and trigger the crop load
+    if (dataset === "uk" && locations.length === 1) {
+      select.value = locations[0];
+      select.disabled = true; 
+      select.dispatchEvent(new Event("change"));
+    } else {
+      select.disabled = false;
+    }
   }
+
   // -----------------------------------------------
   // COUNTRY CHANGE -> LOAD CROPS
   // -----------------------------------------------
   document.getElementById("countrySelect").addEventListener("change", async function () {
     const area = this.value;
+    const dataset = document.getElementById("datasetSelect").value;
     const cropSelect = document.getElementById("cropSelect");
     
-    // Reset crop dropdown
     cropSelect.innerHTML = '<option value="">-- Select Crop --</option>';
     cropSelect.disabled = !area;
-    
-    document.getElementById("yieldCard").style.display = "none";
-    document.getElementById("climateCard").style.display = "none";
-    document.getElementById("statsRow").style.display = "none";
-    document.getElementById("placeholder").style.display = "block";
-    showError("");
+    clearDashboard();
     if (!area) return;
-    const res = await fetch(`${API}/api/crops?area=${encodeURIComponent(area)}`);
+
+    const res = await fetch(`${API}/api/crops?dataset=${dataset}&area=${encodeURIComponent(area)}`);
     const crops = await res.json();
+    
     crops.forEach(crop => {
       const opt = document.createElement("option");
       opt.value = crop;
@@ -269,48 +318,58 @@
       cropSelect.appendChild(opt);
     });
   });
+
   // -----------------------------------------------
   // CROP CHANGE -> LOAD CHART DATA
   // -----------------------------------------------
   document.getElementById("cropSelect").addEventListener("change", async function () {
     const crop = this.value;
     const area = document.getElementById("countrySelect").value;
+    const dataset = document.getElementById("datasetSelect").value;
+
     if (!crop || !area) return;
+    
     showLoading(true);
-    showError("");
-    document.getElementById("yieldCard").style.display = "none";
-    document.getElementById("climateCard").style.display = "none";
+    clearDashboard();
     document.getElementById("placeholder").style.display = "none";
+
     try {
       const res = await fetch(
-        `${API}/api/chart-data?area=${encodeURIComponent(area)}&crop=${encodeURIComponent(crop)}`
+        `${API}/api/chart-data?dataset=${dataset}&area=${encodeURIComponent(area)}&crop=${encodeURIComponent(crop)}`
       );
       const data = await res.json();
       
       if (data.error) {
         showError(data.error);
+        document.getElementById("placeholder").style.display = "block";
       } else {
-        renderYieldChart(data, area, crop);
+        const unit = data.length > 0 ? data[0].unit : "hg/ha";
+        renderYieldChart(data, area, crop, unit);
         renderClimateChart(data, area);
-        renderStats(data);
+        renderStats(data, unit);
       }
     } catch (e) {
       showError("Could not connect to the backend. Is Flask running?");
     }
     showLoading(false);
   });
+
   // -----------------------------------------------
   // RENDER YIELD CHART
   // -----------------------------------------------
-  function renderYieldChart(data, area, crop) {
+  function renderYieldChart(data, area, crop, unit) {
     const card = document.getElementById("yieldCard");
     card.style.display = "block";
-    document.getElementById("yieldTitle").textContent =
-      `${crop} Yield in ${area} — Actual vs Predicted`;
-    const labels   = data.map(d => d.year);
-    const actual   = data.map(d => d.actual);
+    
+    document.getElementById("yieldTitle").textContent = `${crop} Yield in ${area} — Actual vs Predicted`;
+    document.getElementById("yieldSub").textContent = `Yield measured in ${unit}`;
+
+    const labels = data.map(d => d.year);
+    const actual = data.map(d => d.actual);
     const predicted = data.map(d => d.predicted);
+
     if (yieldChartInstance) yieldChartInstance.destroy();
+    
     const ctx = document.getElementById("yieldChart").getContext("2d");
     yieldChartInstance = new Chart(ctx, {
       type: "line",
@@ -344,7 +403,7 @@
           legend: { position: "top" },
           tooltip: {
             callbacks: {
-              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} hg/ha`
+              label: ctx => `${ctx.dataset.label}: ${ctx.parsed.y.toLocaleString()} ${unit}`
             }
           }
         },
@@ -358,18 +417,22 @@
       }
     });
   }
+
   // -----------------------------------------------
-  // RENDER CLIMATE CHART (DUAL AXIS)
+  // RENDER CLIMATE CHART
   // -----------------------------------------------
   function renderClimateChart(data, area) {
     const card = document.getElementById("climateCard");
     card.style.display = "block";
     document.getElementById("climateTitle").textContent = `Historical Climate Data for ${area}`;
+    
     const labels = data.map(d => d.year);
     const temps  = data.map(d => d.avg_temp);
     const rains  = data.map(d => d.rainfall);
+
     if (climateChartInstance) climateChartInstance.destroy();
     const ctx = document.getElementById("climateChart").getContext("2d");
+    
     climateChartInstance = new Chart(ctx, {
       type: "line",
       data: {
@@ -400,13 +463,8 @@
       },
       options: {
         responsive: true,
-        interaction: {
-          mode: 'index',
-          intersect: false,
-        },
-        plugins: {
-          legend: { position: "top" },
-        },
+        interaction: { mode: 'index', intersect: false },
+        plugins: { legend: { position: "top" } },
         scales: {
           "y-temp": {
             type: "linear",
@@ -427,35 +485,42 @@
               color: "#00BCD4",
               font: { weight: 'bold' }
             },
-            grid: {
-              drawOnChartArea: false // Prevents grid lines from overlapping
-            }
+            grid: { drawOnChartArea: false }
           }
         }
       }
     });
   }
+
   // -----------------------------------------------
   // RENDER STAT BOXES
   // -----------------------------------------------
-  function renderStats(data) {
+  function renderStats(data, unit) {
     const latest = data[data.length - 1];
-    document.getElementById("statLatestActual").textContent =
-      latest.actual.toLocaleString();
-    document.getElementById("statLatestPred").textContent =
-      latest.predicted.toLocaleString();
+    
+    document.getElementById("statLatestActual").textContent = latest.actual.toLocaleString();
+    document.getElementById("statLatestPred").textContent = latest.predicted.toLocaleString();
+    
+    document.getElementById("labelLatestActual").textContent = `Latest Actual Yield (${unit})`;
+    document.getElementById("labelLatestPred").textContent = `Latest Predicted Yield (${unit})`;
+    
     document.getElementById("statYears").textContent = data.length;
     document.getElementById("statsRow").style.display = "flex";
   }
+
   // -----------------------------------------------
   // RENDER FEATURE IMPORTANCE CHART
   // -----------------------------------------------
   async function loadFeatureImportance() {
-    const res  = await fetch(`${API}/api/feature-importance`);
+    const dataset = document.getElementById("datasetSelect") ? document.getElementById("datasetSelect").value : "global";
+    const res  = await fetch(`${API}/api/feature-importance?dataset=${dataset}`);
     const data = await res.json();
-    const labels     = data.map(d => d.feature);
+    
+    const labels = data.map(d => d.feature);
     const importance = data.map(d => (d.importance * 100).toFixed(1));
+
     if (featureChartInstance) featureChartInstance.destroy();
+    
     const ctx = document.getElementById("featureChart").getContext("2d");
     featureChartInstance = new Chart(ctx, {
       type: "bar",
@@ -464,9 +529,7 @@
         datasets: [{
           label: "Importance (%)",
           data: importance,
-          backgroundColor: [
-            "#4CAF50", "#2196F3", "#FF9800", "#9C27B0", "#F44336"
-          ],
+          backgroundColor: ["#4CAF50", "#2196F3", "#FF9800", "#9C27B0", "#F44336", "#00BCD4", "#E91E63"],
           borderRadius: 5
         }]
       },
@@ -475,16 +538,10 @@
         responsive: true,
         plugins: {
           legend: { display: false },
-          tooltip: {
-            callbacks: {
-              label: ctx => `${ctx.parsed.x}%`
-            }
-          }
+          tooltip: { callbacks: { label: ctx => `${ctx.parsed.x}%` } }
         },
         scales: {
-          x: {
-            ticks: { callback: v => v + "%" }
-          }
+          x: { ticks: { callback: v => v + "%" } }
         }
       }
     });
