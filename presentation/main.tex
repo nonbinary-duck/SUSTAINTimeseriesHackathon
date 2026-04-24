@@ -1,6 +1,113 @@
-\documentclass{article}
-\usepackage{fontspec}
+\documentclass[aspectratio=169]{beamer}
+%% --------------------------------------------------------------------
+%%  1.  Choose the Berlin theme
+%% --------------------------------------------------------------------
+\usetheme{Berlin}
+\usecolortheme{spruce}
+\setbeamertemplate{caption}[numbered]
+
+
+%% ------------------------------------------------------------
+%% 2.  Optional packages
+%% ------------------------------------------------------------
+\usepackage{graphicx}
+\usepackage{xcolor}            %  for custom colours
+\usepackage[backend=biber, style=apa]{biblatex}
+\usepackage{hyperref}
+\usepackage[capitalise]{cleveref}
+\usepackage[]{subcaption} % For subfigures environments https://tex.stackexchange.com/a/282878
+\usepackage[]{caption}
+\usepackage{tabularray}
+\usepackage[normalem]{ulem}
+\usepackage{qrcode}
+
+
+\addbibresource{main.bib}
+\renewcommand*{\bibfont}{\scriptsize}
+
+%% --------------------------------------------------------------------
+%%  3.  Define your logos (change file names / paths) --------------------
+%% --------------------------------------------------------------------
+% Height of the logos in the footer (you can tweak it).
+\newcommand{\logoheight}{4ex}
+\newcommand{\logoboxheight}{4.1ex}
+
+%% --------------------------------------------------------------------
+%%  4.  Build a custom footline -----------------------------------------
+%% --------------------------------------------------------------------
+% The Berlin theme already sets a footline.  We override it here.
+\setbeamertemplate{footline}
+{
+    % Use a frame with a small vertical offset.
+    \leavevmode%
+    \hbox{%
+        \begin{beamercolorbox}[wd=\paperwidth,
+                               ht=\logoboxheight,
+                               dp=0.75ex]{footline}
+            % Left logo
+            \hfill
+            \includegraphics[height=\logoheight]{media/ukri.pdf}%
+            % Right logo
+            \hfill%
+            \includegraphics[height=\logoheight]{media/sustain.pdf}%
+            \hfill
+            \includegraphics[height=\logoheight]{media/uol.png}%
+            \hfill
+            \includegraphics[height=\logoheight]{media/aberdeen.png}%
+            \hfill
+            \includegraphics[height=\logoheight]{media/qub.png}%
+            \hfill
+            \includegraphics[height=\logoheight]{media/uos.png}%
+            \hfill
+            % Optional: slide number on the far right
+            % \hfill\insertframenumber/\inserttotalframenumber%
+            \hfill%
+        \end{beamercolorbox}%
+    }%
+}
+% If you want the page numbers to appear as usual, uncomment the line
+% above that prints \insertframenumber.  If you want the numbers
+% centered between the logos, use the following line instead:
+%   \hfill\insertframenumber/\inserttotalframenumber\hfill
+%% --------------------------------------------------------------------
+%%  5.  Optional: adjust the height of the footline --------------------
+%% --------------------------------------------------------------------
+% The default Berlin footline height is 2.5ex; if you need more room
+% for your logos you can increase it, e.g.:
+% \setbeamercolor{footline}{}
+% \setbeamersize{footlineheight=3.5ex}
+%% --------------------------------------------------------------------
+%%  6.  Document title (short title is used in the footline) ------------
+%% --------------------------------------------------------------------
+\title{Group 4 SUSTAIN Time Series Hackathon}
+\author{James Barnard \and Lauren Gilman \and Adam Hale \and Villanelle O'Reilly \and Maddison Parkhouse}
+\institute{Authors listed in order of last name.}
+\date{April 24\textsuperscript{th}, 2026}
+%% --------------------------------------------------------------------
+%%  7.  Begin the document ---------------------------------------------
+%% --------------------------------------------------------------------
 \begin{document}
-Hello from LuaLaTeX! 
-The time is \today.
+% Title page (Berlin will put the logo at the top left)
+\frame{\titlepage}
+    % Example slide
+
+    \section{Data Processing}
+
+    
+
+    \begin{frame}
+        \frametitle{It's On The Internet!}
+
+        \begin{figure}
+            \qrcode[height=0.35 \linewidth]{https://cropforcaster.vnet.tel/}
+            \caption{\url{https://cropforcaster.vnet.tel/}}
+        \end{figure}
+    \end{frame}
+
+    \begin{frame}[allowframebreaks]
+        \frametitle{References}
+        
+        \printbibliography
+    \end{frame}
+
 \end{document}
