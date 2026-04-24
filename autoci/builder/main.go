@@ -20,6 +20,7 @@ import (
 var (
     currentCtx    context.Context
     cancelCurrent context.CancelFunc
+    activeCommit  string // Track which commit is currently building
     mu            sync.Mutex
 )
 
@@ -33,18 +34,38 @@ type Update struct {
 func main() {
     http.HandleFunc("/trigger", func(w http.ResponseWriter, r *http.Request) {
         commit := r.URL.Query().Get("commit")
-        mu.Lock()
-        if cancelCurrent != nil {
-            cancelCurrent()
-            sendStatus(commit, "Cancelled", "Build cancelled by newer push.", "")
+        if commit == "" {
+            http.Error(w, "Missing commit parameter", http.StatusBadRequest)
+            return
         }
+
+        mu.Lock()
+        // 1. If the same commit is already running, ignore this request
+        if activeCommit == commit && cancelCurrent != nil {
+            mu.Unlock()
+            log.Printf("Build for %s already in progress. Ignoring request.", commit)
+            w.WriteHeader(http.StatusAccepted)
+            return
+        }
+
+        // 2. If a different commit is running, cancel it
+        if cancelCurrent != nil {
+            log.Printf("Newer commit %s received. Cancelling build for %s.", commit, activeCommit)
+            cancelCurrent()
+            // Notify UI that the PREVIOUS commit was cancelled
+            go sendStatus(activeCommit, "Cancelled", "Build cancelled by newer push.", "")
+        }
+
+        // 3. Set up the new build context
         currentCtx, cancelCurrent = context.WithCancel(context.Background())
+        activeCommit = commit
         ctx := currentCtx
         mu.Unlock()
 
         go runBuild(ctx, commit)
         w.WriteHeader(http.StatusOK)
     })
+
     log.Println("Builder listening on :8080")
     log.Fatal(http.ListenAndServe(":8080", nil))
 }
@@ -52,7 +73,7 @@ func main() {
 func getBuildTime() string {
     resp, err := http.Get(os.Getenv("STATUS_TIME_URL"))
     if err != nil {
-        return "Unknown Time"
+        return time.Now().Format(time.RFC3339)
     }
     defer resp.Body.Close()
     var res map[string]string
@@ -61,6 +82,9 @@ func getBuildTime() string {
 }
 
 func sendStatus(commit, status, logStr, buildTime string) {
+    if commit == "" {
+        return
+    }
     data, _ := json.Marshal(Update{
         Commit: commit,
         Status: status,
@@ -71,6 +95,16 @@ func sendStatus(commit, status, logStr, buildTime string) {
 }
 
 func runBuild(ctx context.Context, commit string) {
+    // Ensure we clean up global state when this specific build finishes
+    defer func() {
+        mu.Lock()
+        if activeCommit == commit {
+            activeCommit = ""
+            cancelCurrent = nil
+        }
+        mu.Unlock()
+    }()
+
     buildTime := getBuildTime()
     logStr := "Starting Docker build via Go API...\n"
     sendStatus(commit, "Building", logStr, buildTime)
@@ -81,6 +115,7 @@ func runBuild(ctx context.Context, commit string) {
         return
     }
 
+    // Prepare Docker Context (Tar)
     buf := new(bytes.Buffer)
     tw := tar.NewWriter(buf)
     df, err := os.ReadFile("/app/Dockerfile.autoci")
@@ -103,7 +138,11 @@ func runBuild(ctx context.Context, commit string) {
         Dockerfile: "Dockerfile",
     })
     if err != nil {
-        sendStatus(commit, "Failed", logStr+"Build error: "+err.Error(), buildTime)
+        if ctx.Err() != nil {
+            sendStatus(commit, "Cancelled", logStr+"Build cancelled.", buildTime)
+        } else {
+            sendStatus(commit, "Failed", logStr+"Build error: "+err.Error(), buildTime)
+        }
         return
     }
 
@@ -113,7 +152,6 @@ func runBuild(ctx context.Context, commit string) {
     var logMu sync.Mutex
     done := make(chan bool)
 
-    // Background ticker to push log stream to the status UI
     go func() {
         ticker := time.NewTicker(1 * time.Second)
         defer ticker.Stop()
@@ -126,6 +164,8 @@ func runBuild(ctx context.Context, commit string) {
                 sendStatus(commit, "Building", currLog, buildTime)
             case <-done:
                 return
+            case <-ctx.Done():
+                return
             }
         }
     }()
@@ -137,9 +177,8 @@ func runBuild(ctx context.Context, commit string) {
             Error  string `json:"error"`
         }
         if err := decoder.Decode(&msg); err != nil {
-            break // EOF or decode error means build finished
+            break
         }
-        
         logMu.Lock()
         if msg.Error != "" {
             logStr += msg.Error + "\n"
@@ -149,19 +188,22 @@ func runBuild(ctx context.Context, commit string) {
         logMu.Unlock()
     }
     res.Body.Close()
-    close(done) // stop the ticker
-    // ----------------------------------------------------
+    close(done)
 
     logMu.Lock()
     logStr += "\nBuild finished. Replacing container..."
     finalLog := logStr
     logMu.Unlock()
 
+    // Check if we were cancelled during the log streaming phase
     if ctx.Err() != nil {
         sendStatus(commit, "Cancelled", finalLog+"\nCancelled by newer push.", buildTime)
         return
     }
 
+    // ----------------------------------------------------
+    // DEPLOYMENT
+    // ----------------------------------------------------
     target := os.Getenv("TARGET_CONTAINER")
     _, _ = cli.ContainerStop(ctx, target, client.ContainerStopOptions{})
     _, _ = cli.ContainerRemove(ctx, target, client.ContainerRemoveOptions{Force: true})
@@ -197,8 +239,7 @@ func runBuild(ctx context.Context, commit string) {
         return
     }
 
-    _, err = cli.ContainerStart(ctx, cont.ID, client.ContainerStartOptions{})
-    if err != nil {
+    if err := cli.ContainerStart(ctx, cont.ID, client.ContainerStartOptions{}); err != nil {
         sendStatus(commit, "Failed", finalLog+"\nStart error: "+err.Error(), buildTime)
         return
     }
