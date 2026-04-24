@@ -27,6 +27,8 @@ services:
       STATUS_TIME_URL: http://status:8080/api/time
       TARGET_IMAGE: local/webapp-autoci:latest
       TARGET_CONTAINER: webapp
+    volumes:
+      - ./Dockerfile.autoci:/app/Dockerfile.autoci:ro
     depends_on:
       - dockerproxy
     restart: always

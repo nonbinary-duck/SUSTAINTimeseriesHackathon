@@ -239,7 +239,8 @@ func runBuild(ctx context.Context, commit string) {
         return
     }
 
-    if err := cli.ContainerStart(ctx, cont.ID, client.ContainerStartOptions{}); err != nil {
+    _, err = cli.ContainerStart(ctx, cont.ID, client.ContainerStartOptions{})
+    if err != nil {
         sendStatus(commit, "Failed", finalLog+"\nStart error: "+err.Error(), buildTime)
         return
     }
